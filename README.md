@@ -1,4 +1,4 @@
-# Vagrant box for CKAN (2.0)
+# Vagrant box for CKAN (2.6.0)
 
 [CKAN](http://ckan.org) (the apt-get for opendata) is an open-source portal application developed by the [OKFN](http://okfn.org).
 
