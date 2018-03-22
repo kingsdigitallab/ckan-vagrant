@@ -1,15 +1,26 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
-Vagrant::Config.run do |config|
-  config.vm.box = "precise64"
-  config.vm.box_url = "http://files.vagrantup.com/precise64.box"
-  config.vm.network :hostonly, "192.168.19.97"
-  config.vm.host_name = "ckan.lo"
-  config.vm.share_folder "v-root", "/vagrant", ".", :nfs => true
-  config.vm.provision :shell, :path => "vagrant/package_provision.sh"
-  config.vm.customize ["setextradata", :id, "VBoxInternal2/SharedFoldersEnableSymlinksCreate/v-root", "1"]
-  config.vm.customize ["modifyvm", :id, "--memory", 1024]
-  config.vm.customize ["modifyvm", :id, "--cpus", 1]
+VAGRANTFILE_API_VERSION = '2'.freeze
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.box = 'bento/ubuntu-16.04'
+
+  config.vm.host_name = 'ckan.lo'
+  config.vm.network 'forwarded_port', guest: 80, host: 8080
+  config.vm.network 'forwarded_port', guest: 8983, host: 8983
+  config.vm.network 'private_network', ip: '192.168.19.97'
+
+  config.vm.provision :shell, path: 'vagrant/provision.sh'
+
+  config.vm.provider 'virtualbox' do |provider|
+    provider.customize [
+      'setextradata', :id,
+      'VBoxInternal2/SharedFoldersEnableSymlinksCreate/v-root', '1'
+    ]
+    provider.customize ['modifyvm', :id, '--memory', '1024']
+    provider.name = 'ckan'
+  end
+
   config.ssh.forward_agent = true
 end
