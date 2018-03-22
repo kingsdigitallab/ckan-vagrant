@@ -2,8 +2,6 @@
 
 [CKAN](http://ckan.org) (the apt-get for opendata) is an open-source portal application developed by the [OKFN](http://okfn.org).
 
-In order to make the getting started part easier I created this shell script to create a CKAN instance with the help of vagrant, a nice wrapper around virtualbox that creates and manages virtual machines.
-
 ## Setup
 
 1. Install [Virtualbox](https://www.virtualbox.org)
