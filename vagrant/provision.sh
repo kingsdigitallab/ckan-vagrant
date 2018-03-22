@@ -1,4 +1,4 @@
-echo "this shell script is going to setup a running ckan instance"
+echo "this shell script is going to setup a running ckan instance based on the CKAN 2.6.0 packages"
 
 echo "switching the OS language"
 locale-gen
@@ -9,79 +9,69 @@ echo "updating the package manager"
 sudo apt-get update
 
 echo "installing dependencies available via apt-get"
-sudo apt-get install python-dev postgresql libpq-dev python-pip python-virtualenv git-core solr-jetty openjdk-6-jdk python-pastescript apache2 libapache2-mod-wsgi vim -y
+sudo apt-get install -y nginx apache2 libapache2-mod-wsgi libpq5
 
-cp /vagrant/vagrant/ckan.conf /etc/apache2/conf.d/ckan.conf
+echo "downloading the CKAN package"
+wget -q http://packaging.ckan.org/python-ckan_2.6.0_amd64.deb
+
+echo "installing the CKAN package"
+sudo dpkg -i python-ckan_2.6.0_amd64.deb
+
+echo "Preventing NGINX from being started on a reboot"
+sudo update-rc.d -f nginx disable
+
+echo "changing the apache configuration back to port 80"
+sudo cp /vagrant/vagrant/package_ports.conf /etc/apache2/ports.conf
+sudo cp /vagrant/vagrant/package_ckan_default.conf /etc/apache2/sites-available/ckan_default
 sudo service apache2 restart
 
-echo "installing the dependencies available via pip"
-mkdir -p /usr/local/ckan.lo/
-sudo chmod -R a+rX /usr/local/ckan.lo
-cd /usr/local/ckan.lo/
-virtualenv --no-site-packages /usr/local/ckan.lo/pyenv
-source /usr/local/ckan.lo/pyenv/bin/activate
-pip install -e 'git+https://github.com/ckan/ckan.git@ckan-2.6.0#egg=ckan'
-pip install -r /usr/local/ckan.lo/pyenv/src/ckan/pip-requirements.txt
-pip install Pylons
-deactivate
-source /usr/local/ckan.lo/pyenv/bin/activate
+echo "install postgresql and jetty"
+sudo apt-get install -y postgresql solr-jetty openjdk-6-jdk
 
-echo "creating a postgres user and database"
-sudo -u postgres createuser --superuser $USER # create a default user
-psql postgres -c "create role ckanuser login password 'pass'" 
-sudo -u postgres createdb -O ckanuser ckantest -E utf-8
-
-echo "copying configuration files"
-cd /usr/local/ckan.lo/pyenv/src/ckan
-cp /vagrant/vagrant/development.ini development.ini
-deactivate
-mkdir -p /var/log/solr
+echo "copying jetty configuration"
 cp /vagrant/vagrant/jetty /etc/default/jetty
-sudo service jetty restart
+sudo service jetty start
 
+echo "linking the solr schema file"
 sudo mv /etc/solr/conf/schema.xml /etc/solr/conf/schema.xml.bak
-sudo ln -s /usr/local/ckan.lo/pyenv/src/ckan/ckan/config/solr/schema-2.0.xml /etc/solr/conf/schema.xml
+sudo ln -s /usr/lib/ckan/default/src/ckan/ckanext/multilingual/solr/dutch_stop.txt /etc/solr/conf/dutch_stop.txt
+sudo ln -s /usr/lib/ckan/default/src/ckan/ckanext/multilingual/solr/english_stop.txt /etc/solr/conf/english_stop.txt
+sudo ln -s /usr/lib/ckan/default/src/ckan/ckanext/multilingual/solr/fr_elision.txt /etc/solr/conf/fr_elision.txt
+sudo ln -s /usr/lib/ckan/default/src/ckan/ckanext/multilingual/solr/french_stop.txt /etc/solr/conf/french_stop.txt
+sudo ln -s /usr/lib/ckan/default/src/ckan/ckanext/multilingual/solr/german_stop.txt /etc/solr/conf/german_stop.txt
+sudo ln -s /usr/lib/ckan/default/src/ckan/ckanext/multilingual/solr/greek_stopwords.txt /etc/solr/conf/greek_stopwords.txt
+sudo ln -s /usr/lib/ckan/default/src/ckan/ckanext/multilingual/solr/italian_stop.txt /etc/solr/conf/italian_stop.txt
+sudo ln -s /usr/lib/ckan/default/src/ckan/ckanext/multilingual/solr/polish_stop.txt /etc/solr/conf/polish_stop.txt
+sudo ln -s /usr/lib/ckan/default/src/ckan/ckanext/multilingual/solr/portuguese_stop.txt /etc/solr/conf/portuguese_stop.txt
+sudo ln -s /usr/lib/ckan/default/src/ckan/ckanext/multilingual/solr/romanian_stop.txt /etc/solr/conf/romanian_stop.txt
+sudo ln -s /usr/lib/ckan/default/src/ckan/ckanext/multilingual/solr/spanish_stop.txt /etc/solr/conf/spanish_stop.txt
+sudo ln -s /usr/lib/ckan/default/src/ckan/ckanext/multilingual/solr/schema.xml /etc/solr/conf/schema.xml
+# sudo ln -s /usr/lib/ckan/default/src/ckan/ckan/config/solr/schema-2.0.xml /etc/solr/conf/schema.xml
 
-echo "restarting jetty for the new configuration to kick-in"
 sudo service jetty restart
 
-echo "creating logging folder"
-sudo chgrp -R www-data data sstore
-sudo mkdir -p /var/log/ckan/ckan.lo/
-sudo chmod g+w -R /var/log/ckan/ckan.lo/
-sudo chown www-data -R /var/log/ckan/ckan.lo/
+echo "create a CKAN database in postgresql"
+sudo -u postgres createuser -S -D -R ckan_default
+sudo -u postgres psql -c "ALTER USER ckan_default with password 'pass'"
+sudo -u postgres createdb -O ckan_default ckan_default -E utf-8
 
-echo "initialize the database for ckan"
-source /usr/local/ckan.lo/pyenv/bin/activate
-paster --plugin=ckan db init
-touch /var/log/ckan/ckan.lo/
-sudo chown www-data /var/log/ckan/ckan.lo/ckan.log
+echo "initialize CKAN database"
+cp /vagrant/vagrant/package_production.ini /etc/ckan/default/production.ini
+sudo ckan db init
 
-echo "copying wsgi file"
-cd /usr/local/ckan.lo/pyenv/bin
-cp /vagrant/vagrant/mothership.py mothership.py
-
-echo "enable site in apache"
-cd /etc/apache2/sites-available
-cp /vagrant/vagrant/ckan.lo ckan.lo
-
-echo "create necessary directories"
-cd /usr/local/ckan.lo/pyenv/src/ckan/
-mkdir data sstore filestorage
-chmod g+w -R data sstore filestorage
-sudo chgrp -R www-data data sstore filestorage
-
-echo "launching the site"
-sudo a2dissite default
-sudo a2ensite ckan.lo
+echo "enabling filestore with local storage"
+sudo mkdir -p /var/lib/ckan/default
+sudo chown www-data /var/lib/ckan/default
+sudo chmod u+rwx /var/lib/ckan/default
 sudo service apache2 restart
 
-echo "creating admin user"
-cd /usr/local/ckan.lo/pyenv/src/ckan
-paster --plugin=ckan user add admin email=admin@email.org password=pass
-paster --plugin=ckan sysadmin add admin
+echo "creating an admin user"
+source /usr/lib/ckan/default/bin/activate
+cd /usr/lib/ckan/default/src/ckan
+paster --plugin=ckan user add admin email=admin@email.org password=pass -c /etc/ckan/default/production.ini
+paster --plugin=ckan sysadmin add admin -c /etc/ckan/default/production.ini
 
-echo "loading test data"
-paster --plugin=ckan create-test-data translations
+echo "loading some multilingual test data"
+paster --plugin=ckan create-test-data translations -c /etc/ckan/default/production.ini
 
 echo "you should now have a running instance on http://ckan.lo"
