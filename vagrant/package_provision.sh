@@ -74,7 +74,7 @@ sudo service jetty8 restart
 echo
 echo "4. Update the configuration and initialize the database"
 echo "- Edit the CKAN configuration file"
-sudo cp /vagrant/vagrant/production.ini /etc/ckan/default/production.ini
+sudo cp /vagrant/vagrant/package_production.ini /etc/ckan/default/production.ini
 
 echo "- Initialize your CKAN database"
 sudo ckan db init
@@ -97,4 +97,16 @@ sudo service apache2 restart
 sudo service nginx restart
 
 echo
-echo "Open http://localhost:9000/ in your web browser"
+echo "- 6. Adding initial test data to CKAN"
+cd /usr/lib/ckan/default/src/ckan
+source ../../bin/activate
+paster create-test-data -c /etc/ckan/default/production.ini
+paster create-test-data search -c /etc/ckan/default/production.ini
+paster create-test-data gov -c /etc/ckan/default/production.ini
+paster create-test-data family -c /etc/ckan/default/production.ini
+paster create-test-data vocabs -c /etc/ckan/default/production.ini
+paster create-test-data hierarchy -c /etc/ckan/default/production.ini
+
+echo
+echo "Open http://192.168.19.80/ in your web browser"
+echo "Login: testsysadmin/testsysadmin"

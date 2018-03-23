@@ -10,4 +10,4 @@
 4. Move to the directory with your terminal application `cd ckan-vagrant/`
 5. Create the instance `vagrant up`
 6. Go get some coffee (it takes up to 15 minutes)
-7. Open [http://localhost:8080](http://localhost:8080) in your browser.
+7. Open [http://192.168.19.80](http://192.168.19.80) in your browser.
